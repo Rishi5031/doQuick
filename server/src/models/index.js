@@ -3,20 +3,30 @@ const path = require("path");
 const Sequelize = require("sequelize");
 const sequelize = require("../config/database.config");
 
-const basename = path.basename(__filename);
 const db = {};
 
-fs.readdirSync(__dirname)
-    .filter(
-        (file) =>
-            file.indexOf(".") !== 0 && file !== basename && file.slice(-3) === ".js"
-    )
-    .forEach((file) => {
-        const model = require(path.join(__dirname, file))(sequelize, Sequelize.DataTypes);
-        db[model.name] = model;
-    });
+function loadModels(dir) {
+    fs.readdirSync(dir).forEach((file) => {
+        const fullPath = path.join(dir, file);
 
-// Run associations if available
+        if (fs.statSync(fullPath).isDirectory()) {
+            // If folder → load models inside that folder
+            loadModels(fullPath);
+            return;
+        }
+
+        // Load only .js files except index.js
+        if (file !== "index.js" && file.endsWith(".js")) {
+            const model = require(fullPath)(sequelize, Sequelize.DataTypes);
+            db[model.name] = model;
+        }
+    });
+}
+
+// Load models from main models folder
+loadModels(__dirname);
+
+// Run associations
 Object.keys(db).forEach((modelName) => {
     if (db[modelName].associate) {
         db[modelName].associate(db);
